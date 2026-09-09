@@ -18,7 +18,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true })); 
 app.use(express.static('public'));
 
-const mongoURI = 'mongodb://127.0.0.1:27017/pitchConnect';
+const mongoURI = process.env.MONGO_URI || 'mongodb://127.0.0.1:27017/pitchConnect';
 mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
