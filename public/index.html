@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PitchConnect - מצא את המגרש שלך</title>
+    
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
+        
+        header { width: 100%; background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 30px; position: relative; }
+        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
+        header h1 { margin: 0; font-size: 2.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
+        header p { margin: 5px 0 0 0; opacity: 0.9; }
+        
+        .user-controls { display: flex; align-items: center; gap: 15px; }
+        .greeting { font-weight: bold; font-size: 1.1rem; }
+        .logout-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .logout-btn:hover { background: #c0392b; }
+
+        #map { height: 550px; width: calc(100% - 60px); max-width: 1400px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: none; overflow: hidden; }
+        .maplibregl-popup-content { text-align: right; font-family: inherit; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: none; }
+        .maplibregl-popup-close-button { left: 5px; right: auto; padding: 8px; font-size: 16px; color: #7f8c8d; }
+        .maplibregl-popup-close-button:hover { background-color: transparent; color: #e74c3c; }
+        .join-chat-btn { background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%); transition: transform 0.2s ease, box-shadow 0.2s ease; width: 100%; margin-top: 10px; padding: 10px; cursor: pointer; color: white; border: none; border-radius: 5px; font-weight: bold; }
+        .join-chat-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 180, 219, 0.4); }
+
+        #court-workspace { display: none; width: calc(100% - 60px); max-width: 1400px; flex-direction: column; gap: 25px; margin: 40px 0; }
+        .workspace-row { display: flex; gap: 25px; }
+        #chat-panel { flex: 1; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; padding: 20px; backdrop-filter: blur(5px); }
+        #chat-title { text-align: center; color: #1e3c72; margin-top: 0; border-bottom: 2px solid #f1f2f6; padding-bottom: 15px; }
+        #chat-messages { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 10px; height: 350px; }
+        .message { background: #f1f2f6; padding: 12px 15px; border-radius: 15px; margin-bottom: 12px; font-size: 14px; border-right: 4px solid #3498db; }
+        .message-sys { background: transparent; text-align: center; font-size: 12px; color: #95a5a6; border: none; font-style: italic; }
+        #chat-input-area { display: flex; gap: 10px; }
+        #chat-input { flex-grow: 1; padding: 12px; border: 1px solid #dfe4ea; border-radius: 8px; outline: none; transition: border-color 0.3s; }
+        #chat-input:focus { border-color: #3498db; }
+        #send-btn { background: #2ed573; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
+        #send-btn:hover { background: #26de81; }
+
+        @media (max-width: 900px) { .workspace-row { flex-direction: column; } #map { height: 400px; width: 95%; } #court-workspace { width: 95%; } }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-content">
+            <div class="user-controls">
+                <span id="user-greeting" class="greeting">טוען...</span>
+                <button class="logout-btn" onclick="logout()">התנתק</button>
+            </div>
+            <div style="text-align: left;">
+                <h1>PitchConnect ⚽🏀</h1>
+                <p>מצא מגרשים באזור שלך וקבע משחקים</p>
+            </div>
+        </div>
+    </header>
+
+    <div id="map"></div>
+
+    <div id="court-workspace">
+        <div class="workspace-row">
+            <div id="chat-panel">
+                <h3 id="chat-title">טוען נתונים...</h3>
+                <div id="chat-messages"></div>
+                <div id="chat-input-area">
+                    <input type="text" id="chat-input" placeholder="הקלד הודעה...">
+                    <button id="send-btn">שלח</button>
+                </div>
+            </div>
+            <div id="react-tactics-root" style="flex: 2;"></div>
+        </div>
+    </div>
+
+    <script>
+        let isGuestUser = false;
+        let currentUser = null;
+
+        // שומר סף: בדיקה מול השרת האם המשתמש מחובר
+        $.ajax({
+            url: '/api/auth/status',
+            type: 'GET',
+            success: function(res) {
+                if (res.isGuest) {
+                    // אם השרת אומר שהוא אורח, נוודא שהוא לחץ על "המשך כאורח" בדפדפן
+                    if (!sessionStorage.getItem('pitchConnectGuest')) {
+                        window.location.href = '/login.html'; // זריקה החוצה
+                    } else {
+                        isGuestUser = true;
+                        $('#user-greeting').text('שלום, אורח (צפייה בלבד)');
+                    }
+                } else {
+                    currentUser = res.user.username;
+                    $('#user-greeting').text('שלום, ' + currentUser);
+                }
+            },
+            error: function() {
+                window.location.href = '/login.html';
+            }
+        });
+
+        function logout() {
+            sessionStorage.removeItem('pitchConnectGuest');
+            $.post('/api/auth/logout', function() {
+                window.location.href = '/login.html';
+            });
+        }
+
+        $(document).ready(function() {
+            const socket = io();
+            let currentRoom = null;
+
+            const mapTilerKey = '26daLsnzWZ7lkKIB6mTj'; 
+            
+            maplibregl.setRTLTextPlugin(
+                'https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js',
+                null,
+                true 
+            );
+
+            const map = new maplibregl.Map({
+                container: 'map',
+                style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${mapTilerKey}`,
+                center: [34.8, 31.95], 
+                zoom: 11,
+                pitch: 45 
+            });
+
+            map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+            map.on('load', function() {
+                $.ajax({
+                    url: '/api/courts',
+                    type: 'GET',
+                    success: function(courts) {
+                        courts.forEach(function(court) {
+                            if (court.location && court.location.lat && court.location.lng) {
+                                const popupContent = `
+                                    <div style="margin-top: 15px;">
+                                        <h3 style="margin: 0; color: #2c3e50;">${court.name}</h3>
+                                        <p style="margin: 5px 0;"><b>סוג ספורט:</b> ${court.sportType}</p>
+                                        <button class="join-chat-btn" data-id="${court._id}" data-name="${court.name}">היכנס למגרש ולצ'אט</button>
+                                    </div>
+                                `;
+                                const popup = new maplibregl.Popup({ offset: 25 }).setHTML(popupContent);
+                                new maplibregl.Marker({ color: "#e74c3c" })
+                                    .setLngLat([court.location.lng, court.location.lat])
+                                    .setPopup(popup)
+                                    .addTo(map);
+                            }
+                        });
+                    }
+                });
+            });
+
+            $(document).on('click', '.join-chat-btn', function() {
+                // חסימת אורחים!
+                if (isGuestUser) {
+                    alert('אורחים יכולים לצפות במפה בלבד. עליך להירשם או להתחבר כדי להיכנס למגרש ולתאם משחקים!');
+                    window.location.href = '/login.html';
+                    return;
+                }
+
+                const courtId = $(this).data('id');
+                const courtName = $(this).data('name');
+
+                if (currentRoom === courtId) {
+                    $('#court-workspace').fadeOut(300);
+                    socket.emit('leave_court_room', courtId);
+                    currentRoom = null;
+                    return; 
+                }
+
+                if (currentRoom && currentRoom !== courtId) {
+                    $('#chat-messages').empty(); 
+                    socket.emit('leave_court_room', currentRoom);
+                }
+
+                currentRoom = courtId;
+                $('#court-workspace').fadeIn(300).css('display', 'flex');
+                $('#chat-title').text('צ\'אט חי: ' + courtName);
+                window.dispatchEvent(new CustomEvent('court_changed', { detail: { courtName } }));
+                socket.emit('join_court_room', courtId);
+                $('html, body').animate({ scrollTop: $("#court-workspace").offset().top - 20 }, 500);
+            });
+
+            socket.on('chat_history', function(messages) {
+                $('#chat-messages').empty();
+                if(messages.length === 0) {
+                    $('#chat-messages').append('<div class="message-sys">אין הודעות קודמות במגרש זה. התחל את השיחה!</div>');
+                } else {
+                    messages.forEach(msg => {
+                        const style = msg.sender === currentUser ? 'background:#d4edda; border-right:4px solid #28a745;' : '';
+                        $('#chat-messages').append(`<div class="message" style="${style}"><b>${msg.sender}:</b> ${msg.text} <br><small>${msg.time}</small></div>`);
+                    });
+                    $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+                }
+            });
+
+            $('#send-btn').click(function() {
+                const text = $('#chat-input').val().trim();
+                if (text && currentRoom) {
+                    const messageData = {
+                        courtId: currentRoom,
+                        sender: currentUser,
+                        text: text,
+                        time: new Date().toLocaleTimeString()
+                    };
+                    $('#chat-messages').append(`<div class="message" style="background:#d4edda; border-right:4px solid #28a745;"><b>${messageData.sender}:</b> ${messageData.text} <br><small>${messageData.time}</small></div>`);
+                    $('#chat-input').val('');
+                    $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+                    socket.emit('send_message', messageData);
+                }
+            });
+
+            socket.on('receive_message', function(data) {
+                if (data.sender !== currentUser) {
+                    const isSystem = data.sender === 'מערכת';
+                    const msgClass = isSystem ? 'message message-sys' : 'message';
+                    $('#chat-messages').append(`<div class="${msgClass}"><b>${data.sender}:</b> ${data.text} <br><small>${data.time}</small></div>`);
+                    $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
+                }
+            });
+        });
+    </script>
+
+    <script type="text/babel">
+        const TacticsBoard = () => {
+            const canvasRef = React.useRef(null);
+            const [isDrawing, setIsDrawing] = React.useState(false);
+            const [activeCourt, setActiveCourt] = React.useState('בחר מגרש מהמפה');
+
+            const clearBoard = () => {
+                const canvas = canvasRef.current;
+                if(canvas) {
+                    const ctx = canvas.getContext('2d');
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                }
+            };
+
+            React.useEffect(() => {
+                const handleCourtChange = (e) => {
+                    setActiveCourt(e.detail.courtName);
+                    clearBoard();
+                };
+                window.addEventListener('court_changed', handleCourtChange);
+                return () => window.removeEventListener('court_changed', handleCourtChange);
+            }, []);
+
+            const startDrawing = (e) => {
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.beginPath();
+                ctx.moveTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+                setIsDrawing(true);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                const canvas = canvasRef.current;
+                const ctx = canvas.getContext('2d');
+                ctx.lineTo(e.nativeEvent.offsetX, e.nativeEvent.offsetY);
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            };
+
+            const stopDrawing = () => { setIsDrawing(false); };
+
+            return (
+                <div style={{ backgroundColor: 'white', padding: '20px', borderRadius: '15px', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', display: 'flex', gap: '20px', height: '100%' }}>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <h3 style={{ color: '#2c3e50', marginTop: 0 }}>השראה למגרש: {activeCourt} 📺</h3>
+                        <video width="100%" controls style={{ borderRadius: '10px', marginTop: '10px' }}>
+                            <source src="https://www.w3schools.com/html/mov_bbb.mp4" type="video/mp4" />
+                        </video>
+                    </div>
+
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <h3 style={{ color: '#2c3e50', marginTop: 0 }}>לוח טקטיקה 🖍️</h3>
+                        <canvas 
+                            ref={canvasRef} width="400" height="250" 
+                            style={{ border: '2px solid #2c3e50', borderRadius: '10px', backgroundColor: '#e0f7fa', cursor: 'crosshair', marginTop: '10px' }}
+                            onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                        />
+                        <button onClick={clearBoard} style={{ marginTop: '15px', padding: '10px 20px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: 'bold' }}>נקה לוח</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const rootElement = document.getElementById('react-tactics-root');
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(<TacticsBoard />);
+    </script>
+</body>
+</html>

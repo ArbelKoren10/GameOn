@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PitchConnect - התחברות</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #333;
+        }
+        .auth-container { background: white; width: 100%; max-width: 400px; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); padding: 30px; text-align: center; }
+        .auth-container h1 { color: #1e3c72; margin-top: 0; }
+        .tabs { display: flex; border-bottom: 2px solid #ecf0f1; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; font-weight: bold; color: #7f8c8d; transition: 0.3s; }
+        .tab.active { color: #2980b9; border-bottom: 3px solid #2980b9; }
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+        input { width: 90%; padding: 12px; margin: 10px 0; border: 1px solid #bdc3c7; border-radius: 8px; outline: none; font-family: inherit; }
+        input:focus { border-color: #2980b9; }
+        .btn-submit { width: 96%; padding: 12px; background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; margin-top: 15px; transition: 0.3s; }
+        .btn-submit:hover { opacity: 0.9; transform: translateY(-2px); }
+        .btn-guest { width: 96%; padding: 12px; background: #ecf0f1; color: #7f8c8d; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 14px; margin-top: 15px; transition: 0.3s; }
+        .btn-guest:hover { background: #bdc3c7; color: white; }
+        .message-box { margin-top: 15px; font-size: 14px; color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+    <div class="auth-container">
+        <h1>PitchConnect ⚽🏀</h1>
+        <p>ברוכים הבאים לרשת החברתית לספורטאים</p>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('login')">התחברות</div>
+            <div class="tab" onclick="switchTab('register')">הרשמה חדשה</div>
+        </div>
+
+        <div id="login-section" class="form-section active">
+            <input type="text" id="login-username" placeholder="שם משתמש">
+            <input type="password" id="login-password" placeholder="סיסמה">
+            <button class="btn-submit" onclick="login()">היכנס</button>
+        </div>
+
+        <div id="register-section" class="form-section">
+            <input type="text" id="reg-username" placeholder="שם משתמש">
+            <input type="email" id="reg-email" placeholder="דואר אלקטרוני">
+            <input type="password" id="reg-password" placeholder="סיסמה">
+            <button class="btn-submit" onclick="register()">הירשם למערכת</button>
+        </div>
+
+        <button class="btn-guest" onclick="continueAsGuest()">המשך כאורח (צפייה בלבד במפה)</button>
+        <div id="auth-msg" class="message-box"></div>
+    </div>
+
+    <script>
+        function switchTab(tabName) {
+            $('.tab').removeClass('active');
+            $('.form-section').removeClass('active');
+            $('#auth-msg').text('');
+            if(tabName === 'login') {
+                $('.tab').eq(0).addClass('active');
+                $('#login-section').addClass('active');
+            } else {
+                $('.tab').eq(1).addClass('active');
+                $('#register-section').addClass('active');
+            }
+        }
+
+        function login() {
+            const username = $('#login-username').val();
+            const password = $('#login-password').val();
+            $.ajax({
+                url: '/api/auth/login', type: 'POST', data: { username, password },
+                success: function(res) {
+                    sessionStorage.removeItem('pitchConnectGuest');
+                    window.location.href = '/'; 
+                },
+                error: function(err) { $('#auth-msg').text(err.responseJSON?.message || 'שגיאה בהתחברות'); }
+            });
+        }
+
+        function register() {
+            const username = $('#reg-username').val();
+            const email = $('#reg-email').val();
+            const password = $('#reg-password').val();
+            $.ajax({
+                url: '/api/auth/register', type: 'POST', data: { username, email, password },
+                success: function(res) {
+                    $('#auth-msg').css('color', '#27ae60').text(res.message);
+                    setTimeout(() => switchTab('login'), 2000);
+                },
+                error: function(err) { $('#auth-msg').css('color', '#e74c3c').text(err.responseJSON?.message || 'שגיאה בהרשמה'); }
+            });
+        }
+
+        function continueAsGuest() {
+            sessionStorage.setItem('pitchConnectGuest', 'true');
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
