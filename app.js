@@ -2,11 +2,12 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const mongoose = require('mongoose');
-const session = require('express-session'); // נשתמש בזיכרון הדיפולטיבי של הסשן
+const session = require('express-session'); 
 const passport = require('passport');
 const cron = require('node-cron');
 
 const Message = require('./models/message');
+const Event = require('./models/event'); // נוסף עבור הניקוי האוטומטי
 require('./config/passport')(passport); 
 
 const app = express();
@@ -22,7 +23,6 @@ mongoose.connect(mongoURI)
   .then(() => console.log('Connected to MongoDB successfully'))
   .catch(err => console.error('MongoDB connection error:', err));
 
-// הגדרת סשן בסיסית ונקייה (ללא תלות בגרסאות מונגו)
 app.use(session({
     secret: 'arbel_super_secret_key',
     resave: false,
@@ -34,21 +34,24 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // חיבור הראוטים
-const authRoutes = require('./routes/authRoutes');
-app.use('/api/auth', authRoutes);
+app.use('/api/auth', require('./routes/authRoutes'));
+app.use('/api/users', require('./routes/userRoutes'));
+app.use('/api/courts', require('./routes/courtRoutes'));
+app.use('/api/activity', require('./routes/activityRoutes')); // הנתיב החדש לאירועים וגלריה
 
-const userRoutes = require('./routes/userRoutes');
-app.use('/api/users', userRoutes);
-
-const courtRoutes = require('./routes/courtRoutes');
-app.use('/api/courts', courtRoutes);
-
-// משימה מתוזמנת: ניקוי צ'אטים כל לילה ב-03:00 שעון ישראל
+// משימה מתוזמנת: כל לילה ב-03:00 שעון ישראל
 cron.schedule('0 3 * * *', async () => {
-    console.log('--- Starting scheduled chat cleanup ---');
+    console.log('--- Starting scheduled cleanup (03:00 AM) ---');
     try {
-        const result = await Message.deleteMany({});
-        console.log(`Cleanup complete. Deleted ${result.deletedCount} old messages.`);
+        // 1. מחיקת כל היסטוריית הצ'אטים
+        const chatResult = await Message.deleteMany({});
+        console.log(`Deleted ${chatResult.deletedCount} chat messages.`);
+        
+        // 2. מחיקת אירועים ישנים (שהתאריך שלהם קטן מעכשיו)
+        const now = new Date();
+        const eventResult = await Event.deleteMany({ eventDate: { $lt: now } });
+        console.log(`Deleted ${eventResult.deletedCount} expired events.`);
+        
     } catch (error) {
         console.error('Error during scheduled cleanup:', error);
     }
@@ -63,9 +66,7 @@ io.on('connection', (socket) => {
         try {
             const history = await Message.find({ courtId }).sort({ createdAt: 1 }).limit(50);
             socket.emit('chat_history', history);
-        } catch (error) {
-            console.error('Error fetching chat history:', error);
-        }
+        } catch (error) { console.error('Error fetching chat history:', error); }
         
         socket.to(courtId).emit('receive_message', {
             sender: 'מערכת',
@@ -87,9 +88,7 @@ io.on('connection', (socket) => {
                 time: data.time
             });
             await newMsg.save();
-        } catch (error) {
-            console.error('Error saving message:', error);
-        }
+        } catch (error) { console.error('Error saving message:', error); }
         socket.to(data.courtId).emit('receive_message', data);
     });
 });
