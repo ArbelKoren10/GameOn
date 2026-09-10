@@ -10,10 +10,7 @@
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-
-    <!-- ייבוא ספריית Supercluster לקיבוץ סמנים בצורה יעילה -->
     <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
-
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
@@ -22,20 +19,24 @@
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
-            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            background-color: #f8f9fa;
+            /* רקע עדין ובהיר במקום גראדינט כבד */
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
+        /* ==========================================
+           עיצוב ההדר החדש (Navbar)
+           ========================================== */
         header {
             width: 100%;
-            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
-            color: white;
-            padding: 1.5rem 0;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            margin-bottom: 20px;
+            background: white;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header-content {
@@ -44,87 +45,180 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 0 30px;
+            padding: 12px 20px;
+            height: 60px;
         }
 
-        header h1 {
-            margin: 0;
-            font-size: 2.2rem;
-            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
-        }
-
-        header p {
-            margin: 5px 0 0 0;
-            opacity: 0.9;
-        }
-
-        .user-controls {
+        /* לוגו צד ימין (או מרכז במובייל) */
+        .brand {
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
+            text-decoration: none;
         }
 
-        .greeting {
-            font-weight: bold;
-            font-size: 1.1rem;
+        .brand h1 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #1e3c72;
+            font-weight: 800;
+            letter-spacing: -0.5px;
         }
 
-        .logout-btn {
-            background: #e74c3c;
+        .brand-subtitle {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            font-weight: normal;
+            display: none;
+            /* יוסתר במובייל */
+        }
+
+        /* תפריט משתמש (Avatar) בשמאל */
+        .user-menu-container {
+            position: relative;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
             color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 5px;
-            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
             font-weight: bold;
+            font-size: 18px;
+            cursor: pointer;
+            box-shadow: 0 3px 8px rgba(0, 180, 219, 0.3);
+            border: 2px solid white;
+            transition: transform 0.2s;
         }
 
-        .logout-btn:hover {
-            background: #c0392b;
+        .user-avatar:active {
+            transform: scale(0.95);
+        }
+
+        /* התפריט הנשלף */
+        .dropdown-menu {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            width: 180px;
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(-10px);
+            transition: all 0.3s ease;
+            z-index: 101;
+        }
+
+        .dropdown-menu.active {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0);
+        }
+
+        .dropdown-header {
+            padding: 15px;
+            border-bottom: 1px solid #f1f2f6;
+            background: #fcfcfc;
+        }
+
+        .dropdown-header span {
+            display: block;
+            font-size: 14px;
+            color: #7f8c8d;
+        }
+
+        .dropdown-header b {
+            color: #2c3e50;
+            font-size: 15px;
+        }
+
+        .dropdown-item {
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: #e74c3c;
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: #fdf5f5;
+        }
+
+        /* ==========================================
+           שורת הפילטרים החדשה (Chips)
+           ========================================== */
+        .filters-container {
+            width: 100%;
+            background: white;
+            padding: 10px 0;
+            border-bottom: 1px solid #ecf0f1;
+            margin-bottom: 20px;
         }
 
         .filters {
+            max-width: 1400px;
+            margin: 0 auto;
             display: flex;
             gap: 10px;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-            justify-content: center;
-            width: 90%;
+            padding: 0 20px;
+            overflow-x: auto;
+            /* מאפשר גלילה במובייל */
+            -webkit-overflow-scrolling: touch;
+            scrollbar-width: none;
+            /* הסתרת הפס בפיירפוקס */
+        }
+
+        .filters::-webkit-scrollbar {
+            display: none;
+            /* הסתרת הפס בכרום וספארי */
         }
 
         .filter-btn {
-            background: white;
-            color: #2c3e50;
-            border: 2px solid #bdc3c7;
-            padding: 10px 20px;
+            background: #f1f2f6;
+            color: #576574;
+            border: none;
+            padding: 8px 18px;
             border-radius: 20px;
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 14px;
             cursor: pointer;
-            transition: 0.2s;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: all 0.2s ease;
+            white-space: nowrap;
+            /* מונע שבירת שורות בכפתור */
         }
 
-        .filter-btn:hover {
-            border-color: #3498db;
+        .filter-btn:active {
+            transform: scale(0.95);
         }
 
         .filter-btn.active {
-            background: #3498db;
+            background: #1e3c72;
             color: white;
-            border-color: #3498db;
+            box-shadow: 0 4px 10px rgba(30, 60, 114, 0.2);
         }
 
+        /* שאר העיצוב המקורי */
         #map {
             height: 550px;
-            width: calc(100% - 60px);
+            width: calc(100% - 40px);
             max-width: 1400px;
-            border-radius: 25px;
-            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
             border: none;
             overflow: hidden;
         }
 
-        /* עיצוב סמן למגרש בודד */
         .custom-marker {
             width: 35px;
             height: 35px;
@@ -144,7 +238,6 @@
             z-index: 10;
         }
 
-        /* עיצוב סמן מקובץ (Cluster) - מכיל מספר מגרשים */
         .cluster-marker {
             width: 45px;
             height: 45px;
@@ -168,9 +261,7 @@
             background: rgba(41, 128, 185, 1);
         }
 
-        /* ==========================================
-           עיצוב הפופ-אפ המודרני החדש (Card)
-           ========================================== */
+        /* עיצוב הפופ-אפ של המגרש */
         .maplibregl-popup-content {
             border-radius: 16px !important;
             padding: 0 !important;
@@ -262,11 +353,9 @@
             box-shadow: 0 6px 20px rgba(0, 180, 219, 0.5);
         }
 
-        /* ========================================== */
-
         #court-workspace {
             display: none;
-            width: calc(100% - 60px);
+            width: calc(100% - 40px);
             max-width: 1400px;
             flex-direction: column;
             gap: 25px;
@@ -332,7 +421,7 @@
             flex-grow: 1;
             padding: 12px;
             border: 1px solid #dfe4ea;
-            border-radius: 8px;
+            border-radius: 12px;
             outline: none;
             transition: border-color 0.3s;
         }
@@ -346,7 +435,7 @@
             color: white;
             border: none;
             padding: 12px 20px;
-            border-radius: 8px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: bold;
             transition: background 0.3s;
@@ -357,17 +446,37 @@
         }
 
         @media (max-width: 900px) {
+            .header-content {
+                padding: 10px 15px;
+            }
+
+            .brand-subtitle {
+                display: none;
+            }
+
+            .filters {
+                padding: 0 15px;
+            }
+
             .workspace-row {
                 flex-direction: column;
             }
 
             #map {
-                height: 400px;
-                width: 95%;
+                height: 450px;
+                width: 92%;
+                border-radius: 15px;
             }
 
             #court-workspace {
-                width: 95%;
+                width: 92%;
+                margin: 20px 0;
+            }
+        }
+
+        @media (min-width: 901px) {
+            .brand-subtitle {
+                display: block;
             }
         }
     </style>
@@ -375,25 +484,48 @@
 
 <body>
 
+    <!-- ההדר החדש והמעוצב -->
     <header>
         <div class="header-content">
-            <div class="user-controls">
-                <span id="user-greeting" class="greeting">טוען...</span>
-                <button class="logout-btn" onclick="logout()">התנתק</button>
+            <div class="brand">
+                <h1>GameOn</h1>
+                <span class="brand-subtitle">רשת הספורט שלך</span>
             </div>
-            <div style="text-align: left;">
-                <h1>GameOn ⚽🏀</h1>
-                <p>מצא מגרשים באזור שלך וקבע משחקים</p>
+
+            <div class="user-menu-container">
+                <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">
+                    <!-- יאוכלס דינמית על ידי האות הראשונה של המשתמש -->
+                    ?
+                </div>
+
+                <div class="dropdown-menu" id="user-dropdown">
+                    <div class="dropdown-header">
+                        <span>מחובר כ-</span>
+                        <b id="dropdown-username">טוען...</b>
+                    </div>
+                    <div class="dropdown-item" onclick="logout()">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        התנתק מהמערכת
+                    </div>
+                </div>
             </div>
         </div>
     </header>
 
-    <div class="filters">
-        <button class="filter-btn active" data-filter="all">הכל</button>
-        <button class="filter-btn" data-filter="soccer">⚽ כדורגל</button>
-        <button class="filter-btn" data-filter="basketball">🏀 כדורסל</button>
-        <button class="filter-btn" data-filter="tennis">🎾 טניס</button>
-        <button class="filter-btn" data-filter="volleyball">🏐 כדורעף</button>
+    <!-- שורת פילטרים חדשה וקומפקטית -->
+    <div class="filters-container">
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">הכל</button>
+            <button class="filter-btn" data-filter="soccer">⚽ כדורגל</button>
+            <button class="filter-btn" data-filter="basketball">🏀 כדורסל</button>
+            <button class="filter-btn" data-filter="tennis">🎾 טניס</button>
+            <button class="filter-btn" data-filter="volleyball">🏐 כדורעף</button>
+        </div>
     </div>
 
     <div id="map"></div>
@@ -416,12 +548,23 @@
         let isGuestUser = false;
         let currentUser = null;
         let map;
-
         let allFeatures = [];
         let activeMarkers = {};
 
-        // סף זום חכם: במובייל המסך קטן יותר, אז נאפשר לראות מגרשים ממרחק גדול יותר 
         const ZOOM_THRESHOLD = window.innerWidth < 900 ? 11.5 : 13;
+
+        // ניהול התפריט הנשלף של המשתמש
+        function toggleUserMenu() {
+            document.getElementById('user-dropdown').classList.toggle('active');
+        }
+
+        // סגירת התפריט בלחיצה מחוץ אליו
+        document.addEventListener('click', function (event) {
+            const container = document.querySelector('.user-menu-container');
+            if (!container.contains(event.target)) {
+                document.getElementById('user-dropdown').classList.remove('active');
+            }
+        });
 
         $.ajax({
             url: '/api/auth/status',
@@ -432,11 +575,15 @@
                         window.location.href = '/login.html';
                     } else {
                         isGuestUser = true;
-                        $('#user-greeting').text('שלום, אורח (צפייה בלבד)');
+                        $('#dropdown-username').text('אורח (צפייה בלבד)');
+                        $('#user-avatar-btn').text('?').css('background', '#95a5a6');
                     }
                 } else {
                     currentUser = res.user.username;
-                    $('#user-greeting').text('שלום, ' + currentUser);
+                    $('#dropdown-username').text(currentUser);
+                    // שים את האות הראשונה של השם בעיגול הפרופיל
+                    const firstLetter = currentUser.charAt(0).toUpperCase();
+                    $('#user-avatar-btn').text(firstLetter);
                 }
             },
             error: function () { window.location.href = '/login.html'; }
@@ -491,7 +638,6 @@
             el.innerHTML = court.style.icon;
             el.style.backgroundColor = court.style.color;
 
-            // עדכון ה-HTML של הפופ-אפ לעיצוב החדש והמודרני
             const popupContent = `
                 <div class="custom-popup">
                     <div class="popup-header">
@@ -533,7 +679,6 @@
             let currentRoom = null;
             const mapTilerKey = '26daLsnzWZ7lkKIB6mTj';
 
-            // הכנסת ההתראות לתוך אובייקט המפה עצמו כדי שלא יוסתרו במובייל
             $('#map').css('position', 'relative').append(`
                 <div id="zoom-warning" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none; display: none;">
                     🔍 התקרב קצת כדי לראות מגרשים
@@ -554,13 +699,13 @@
             });
 
             map.addControl(new maplibregl.NavigationControl(), 'top-right');
-            // הוספת כפתור ה-GPS ומיקום המשתמש
+
             const geolocate = new maplibregl.GeolocateControl({
-                positionOptions: { enableHighAccuracy: true }, // דיוק גבוה (כמו בוויז)
-                trackUserLocation: true, // עוקב אחרי המשתמש אם הוא זז
-                showUserHeading: true // מראה לאן המשתמש פונה
+                positionOptions: { enableHighAccuracy: true },
+                trackUserLocation: true,
+                showUserHeading: true
             });
-            map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למטה ימינה במובייל
+            map.addControl(geolocate, 'bottom-right');
 
 
             map.on('moveend', updateMarkers);
@@ -628,7 +773,6 @@
                 window.dispatchEvent(new CustomEvent('court_changed', { detail: { courtName: courtName, courtId: courtId } }));
                 socket.emit('join_court_room', courtId);
 
-                // גלילה חלקה למטה במובייל כשלוחצים על מגרש
                 $('html, body').animate({ scrollTop: $("#court-workspace").offset().top - 20 }, 500);
             });
 
