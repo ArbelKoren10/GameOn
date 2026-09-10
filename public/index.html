@@ -240,22 +240,12 @@
             map.on('zoomend', updateMarkers);
 
             map.on('load', function() {
-                const query = `
-                    [out:json];
-                    (
-                      node["leisure"="pitch"](31.8, 34.6, 32.2, 35.0);
-                      way["leisure"="pitch"](31.8, 34.6, 32.2, 35.0);
-                    );
-                    out center;
-                `;
-
-                // שימוש ב-fetch חדיש ובטוח יותר ממובייל במקום $.post
-                fetch('https://overpass-api.de/api/interpreter', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: "data=" + encodeURIComponent(query)
+                // קריאה מאובטחת לשרת שלנו, שעוקפת את חסימות הדפדפן במובייל
+                fetch('/api/courts/live-data')
+                .then(response => {
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    return response.json();
                 })
-                .then(response => response.json())
                 .then(data => {
                     allFeatures = data.elements.map(el => {
                         const lat = el.lat || (el.center && el.center.lat);
@@ -267,11 +257,11 @@
                         return { id: `${el.type}_${el.id}`, lat: lat, lon: lon, name: name, style: style };
                     }).filter(court => court.lat && court.lon);
                     
-                    $('#loading-courts').fadeOut(300); // מעלים את הודעת הטעינה
+                    $('#loading-courts').fadeOut(300); 
                     updateMarkers();
                 })
                 .catch(err => {
-                    console.error("Overpass API Error:", err);
+                    console.error("Local API Error:", err);
                     $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים. רענן עמוד.');
                 });
             });
