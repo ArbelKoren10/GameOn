@@ -106,13 +106,16 @@
         </div>
     </div>
 
-    <script>let isGuestUser = false;
+    <script>
+        let isGuestUser = false;
         let currentUser = null;
         let map;
         
         let allFeatures = []; 
         let activeMarkers = {}; 
-        const ZOOM_THRESHOLD = 13; // סף הזום שממנו מתחילים לראות מגרשים
+        
+        // סף זום חכם: במובייל המסך קטן יותר, אז נאפשר לראות מגרשים ממרחק גדול יותר 
+        const ZOOM_THRESHOLD = window.innerWidth < 900 ? 11.5 : 13; 
 
         $.ajax({
             url: '/api/auth/status',
@@ -147,20 +150,17 @@
             return { code: 'other', name: 'ספורט מעורב', icon: '📍', color: '#34495e' };
         }
 
-        // --- מנגנון רנדור חכם מבוסס זום ו-Bounding Box ---
         function updateMarkers() {
             if (!map) return;
             
             const currentZoom = map.getZoom();
             
-            // בדיקת סף הזום: אם רחוקים מדי, מנקים הכל
             if (currentZoom < ZOOM_THRESHOLD) {
                 Object.keys(activeMarkers).forEach(removeMarker);
-                $('#zoom-warning').fadeIn(200); // הצגת הודעת אזהרה להתקרב
+                $('#zoom-warning').fadeIn(200); 
                 return;
             }
             
-            // אם קרובים מספיק, מסתירים את ההודעה
             $('#zoom-warning').fadeOut(200);
 
             const activeFilter = $('.filter-btn.active').data('filter');
@@ -171,14 +171,9 @@
                     removeMarker(court.id);
                     return;
                 }
-
                 const isVisible = bounds.contains([court.lon, court.lat]);
-
-                if (isVisible) {
-                    addMarker(court);
-                } else {
-                    removeMarker(court.id);
-                }
+                if (isVisible) { addMarker(court); } 
+                else { removeMarker(court.id); }
             });
         }
 
@@ -213,17 +208,19 @@
                 delete activeMarkers[id];
             }
         }
-        // ---------------------------------------------
 
         $(document).ready(function() {
             const socket = io();
             let currentRoom = null;
             const mapTilerKey = '26daLsnzWZ7lkKIB6mTj'; 
             
-            // הוספת חלונית ההתראה על הזום ל-DOM
-            $('body').append(`
-                <div id="zoom-warning" style="position: absolute; top: 120px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.9); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none; display: none;">
-                    🔍 התקרב למפה כדי לראות מגרשים
+            // הכנסת ההתראות לתוך אובייקט המפה עצמו כדי שלא יוסתרו במובייל
+            $('#map').css('position', 'relative').append(`
+                <div id="zoom-warning" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none; display: none;">
+                    🔍 התקרב קצת כדי לראות מגרשים
+                </div>
+                <div id="loading-courts" style="position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: #f39c12; color: white; padding: 8px 15px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none;">
+                    ⏳ טוען נתונים מהלוויין...
                 </div>
             `);
             
@@ -233,7 +230,7 @@
                 container: 'map',
                 style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${mapTilerKey}`,
                 center: [34.7925, 31.9730], 
-                zoom: 11, // מתחילים בזום רחוק, כך שהאזהרה תופיע מיד
+                zoom: 11, 
                 pitch: 45 
             });
 
@@ -252,7 +249,14 @@
                     out center;
                 `;
 
-                $.post('https://overpass-api.de/api/interpreter', { data: query }, function(data) {
+                // שימוש ב-fetch חדיש ובטוח יותר ממובייל במקום $.post
+                fetch('https://overpass-api.de/api/interpreter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: "data=" + encodeURIComponent(query)
+                })
+                .then(response => response.json())
+                .then(data => {
                     allFeatures = data.elements.map(el => {
                         const lat = el.lat || (el.center && el.center.lat);
                         const lon = el.lon || (el.center && el.center.lon);
@@ -260,16 +264,15 @@
                         const style = getSportStyle(sport);
                         const name = (el.tags && el.tags.name) ? el.tags.name : style.name;
                         
-                        return {
-                            id: `${el.type}_${el.id}`,
-                            lat: lat,
-                            lon: lon,
-                            name: name,
-                            style: style
-                        };
+                        return { id: `${el.type}_${el.id}`, lat: lat, lon: lon, name: name, style: style };
                     }).filter(court => court.lat && court.lon);
                     
+                    $('#loading-courts').fadeOut(300); // מעלים את הודעת הטעינה
                     updateMarkers();
+                })
+                .catch(err => {
+                    console.error("Overpass API Error:", err);
+                    $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים. רענן עמוד.');
                 });
             });
 
@@ -304,9 +307,11 @@
 
                 currentRoom = courtId;
                 $('#court-workspace').fadeIn(300).css('display', 'flex');
-                $('#chat-title').text('צ\'אט חי: ' + courtName);
+                
                 window.dispatchEvent(new CustomEvent('court_changed', { detail: { courtName: courtName, courtId: courtId } }));
                 socket.emit('join_court_room', courtId);
+                
+                // גלילה חלקה למטה במובייל כשלוחצים על מגרש
                 $('html, body').animate({ scrollTop: $("#court-workspace").offset().top - 20 }, 500);
             });
 
@@ -326,12 +331,7 @@
             $('#send-btn').click(function() {
                 const text = $('#chat-input').val().trim();
                 if (text && currentRoom) {
-                    const messageData = {
-                        courtId: currentRoom,
-                        sender: currentUser,
-                        text: text,
-                        time: new Date().toLocaleTimeString()
-                    };
+                    const messageData = { courtId: currentRoom, sender: currentUser, text: text, time: new Date().toLocaleTimeString() };
                     $('#chat-messages').append(`<div class="message" style="background:#d4edda; border-right:4px solid #28a745;"><b>${messageData.sender}:</b> ${messageData.text} <br><small>${messageData.time}</small></div>`);
                     $('#chat-input').val('');
                     $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
