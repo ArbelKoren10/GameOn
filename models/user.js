@@ -1,34 +1,9 @@
 const mongoose = require('mongoose');
 
-const userSchema = new mongoose.Schema({
-    username: {
-        type: String,
-        required: true,
-        unique: true
-    },
-    // סיסמה לא חובה כי משתמשי Google לא יזינו סיסמה באתר שלנו
-    password: {
-        type: String,
-    },
-    email: {
-        type: String,
-        unique: true,
-        sparse: true // מאפשר ל-email להיות ריק או ייחודי
-    },
-    googleId: {
-        type: String,
-        unique: true,
-        sparse: true
-    },
-    level: {
-        type: String,
-        enum: ['חובבן', 'בינוני', 'מקצוען'],
-        default: 'חובבן'
-    },
-    favoriteSport: {
-        type: String,
-        default: 'כדורגל'
-    }
-}, { timestamps: true });
+const UserSchema = new mongoose.Schema({
+    username: { type: String, required: true },
+    password: { type: String, required: false }, // שונה ל-false כי למשתמשי גוגל אין סיסמה
+    googleId: { type: String, required: false }  // שדה חדש לשמירת המזהה של גוגל
+});
 
-module.exports = mongoose.model('User', userSchema);
+module.exports = mongoose.model('User', UserSchema);

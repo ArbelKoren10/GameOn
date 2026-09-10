@@ -1,72 +1,322 @@
 <!DOCTYPE html>
 <html lang="he" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GameOn - מצא את המגרש שלך</title>
-    
+
     <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="/socket.io/socket.io.js"></script>
-    
+
     <!-- ייבוא ספריית Supercluster לקיבוץ סמנים בצורה יעילה -->
     <script src="https://unpkg.com/supercluster@8.0.1/dist/supercluster.min.js"></script>
-    
+
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://unpkg.com/babel-standalone@6/babel.min.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); min-height: 100vh; display: flex; flex-direction: column; align-items: center; }
-        
-        header { width: 100%; background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 1.5rem 0; box-shadow: 0 4px 15px rgba(0,0,0,0.2); margin-bottom: 20px; }
-        .header-content { max-width: 1400px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 0 30px; }
-        header h1 { margin: 0; font-size: 2.2rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.4); }
-        header p { margin: 5px 0 0 0; opacity: 0.9; }
-        
-        .user-controls { display: flex; align-items: center; gap: 15px; }
-        .greeting { font-weight: bold; font-size: 1.1rem; }
-        .logout-btn { background: #e74c3c; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .logout-btn:hover { background: #c0392b; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-        .filters { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; justify-content: center; width: 90%; }
-        .filter-btn { background: white; color: #2c3e50; border: 2px solid #bdc3c7; padding: 10px 20px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
-        .filter-btn:hover { border-color: #3498db; }
-        .filter-btn.active { background: #3498db; color: white; border-color: #3498db; }
+        header {
+            width: 100%;
+            background: linear-gradient(90deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 1.5rem 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-bottom: 20px;
+        }
 
-        #map { height: 550px; width: calc(100% - 60px); max-width: 1400px; border-radius: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.15); border: none; overflow: hidden; }
-        
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+        }
+
+        header h1 {
+            margin: 0;
+            font-size: 2.2rem;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4);
+        }
+
+        header p {
+            margin: 5px 0 0 0;
+            opacity: 0.9;
+        }
+
+        .user-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .greeting {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .logout-btn:hover {
+            background: #c0392b;
+        }
+
+        .filters {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 90%;
+        }
+
+        .filter-btn {
+            background: white;
+            color: #2c3e50;
+            border: 2px solid #bdc3c7;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .filter-btn:hover {
+            border-color: #3498db;
+        }
+
+        .filter-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        #map {
+            height: 550px;
+            width: calc(100% - 60px);
+            max-width: 1400px;
+            border-radius: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            border: none;
+            overflow: hidden;
+        }
+
         /* עיצוב סמן למגרש בודד */
-        .custom-marker { width: 35px; height: 35px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 18px; box-shadow: 0 3px 8px rgba(0,0,0,0.4); cursor: pointer; border: 2px solid white; transition: transform 0.2s; }
-        .custom-marker:hover { transform: scale(1.15); z-index: 10; }
+        .custom-marker {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 18px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            border: 2px solid white;
+            transition: transform 0.2s;
+        }
+
+        .custom-marker:hover {
+            transform: scale(1.15);
+            z-index: 10;
+        }
 
         /* עיצוב סמן מקובץ (Cluster) - מכיל מספר מגרשים */
-        .cluster-marker { width: 45px; height: 45px; border-radius: 50%; background: rgba(52, 152, 219, 0.95); color: white; display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 16px; border: 3px solid white; box-shadow: 0 4px 15px rgba(0,0,0,0.4); cursor: pointer; transition: 0.2s; text-shadow: 1px 1px 2px rgba(0,0,0,0.5); }
-        .cluster-marker:hover { transform: scale(1.1); background: rgba(41, 128, 185, 1); }
+        .cluster-marker {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            background: rgba(52, 152, 219, 0.95);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 16px;
+            border: 3px solid white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+            cursor: pointer;
+            transition: 0.2s;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
 
-        .maplibregl-popup-content { text-align: right; font-family: inherit; border-radius: 12px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.15); border: none; }
-        .maplibregl-popup-close-button { left: 5px; right: auto; padding: 8px; font-size: 16px; color: #7f8c8d; }
-        .maplibregl-popup-close-button:hover { background-color: transparent; color: #e74c3c; }
-        .join-chat-btn { background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%); transition: transform 0.2s ease, box-shadow 0.2s ease; width: 100%; margin-top: 10px; padding: 10px; cursor: pointer; color: white; border: none; border-radius: 5px; font-weight: bold; }
-        .join-chat-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0, 180, 219, 0.4); }
+        .cluster-marker:hover {
+            transform: scale(1.1);
+            background: rgba(41, 128, 185, 1);
+        }
 
-        #court-workspace { display: none; width: calc(100% - 60px); max-width: 1400px; flex-direction: column; gap: 25px; margin: 40px 0; }
-        .workspace-row { display: flex; gap: 25px; }
-        #chat-panel { flex: 1; background: rgba(255, 255, 255, 0.95); border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); display: flex; flex-direction: column; padding: 20px; backdrop-filter: blur(5px); }
-        #chat-title { text-align: center; color: #1e3c72; margin-top: 0; border-bottom: 2px solid #f1f2f6; padding-bottom: 15px; }
-        #chat-messages { flex-grow: 1; overflow-y: auto; margin-bottom: 15px; padding-right: 10px; height: 350px; }
-        .message { background: #f1f2f6; padding: 12px 15px; border-radius: 15px; margin-bottom: 12px; font-size: 14px; border-right: 4px solid #3498db; }
-        .message-sys { background: transparent; text-align: center; font-size: 12px; color: #95a5a6; border: none; font-style: italic; }
-        #chat-input-area { display: flex; gap: 10px; }
-        #chat-input { flex-grow: 1; padding: 12px; border: 1px solid #dfe4ea; border-radius: 8px; outline: none; transition: border-color 0.3s; }
-        #chat-input:focus { border-color: #3498db; }
-        #send-btn { background: #2ed573; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: background 0.3s; }
-        #send-btn:hover { background: #26de81; }
+        .maplibregl-popup-content {
+            text-align: right;
+            font-family: inherit;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            border: none;
+        }
 
-        @media (max-width: 900px) { .workspace-row { flex-direction: column; } #map { height: 400px; width: 95%; } #court-workspace { width: 95%; } }
+        .maplibregl-popup-close-button {
+            left: 5px;
+            right: auto;
+            padding: 8px;
+            font-size: 16px;
+            color: #7f8c8d;
+        }
+
+        .maplibregl-popup-close-button:hover {
+            background-color: transparent;
+            color: #e74c3c;
+        }
+
+        .join-chat-btn {
+            background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            width: 100%;
+            margin-top: 10px;
+            padding: 10px;
+            cursor: pointer;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .join-chat-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 180, 219, 0.4);
+        }
+
+        #court-workspace {
+            display: none;
+            width: calc(100% - 60px);
+            max-width: 1400px;
+            flex-direction: column;
+            gap: 25px;
+            margin: 40px 0;
+        }
+
+        .workspace-row {
+            display: flex;
+            gap: 25px;
+        }
+
+        #chat-panel {
+            flex: 1;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+            display: flex;
+            flex-direction: column;
+            padding: 20px;
+            backdrop-filter: blur(5px);
+        }
+
+        #chat-title {
+            text-align: center;
+            color: #1e3c72;
+            margin-top: 0;
+            border-bottom: 2px solid #f1f2f6;
+            padding-bottom: 15px;
+        }
+
+        #chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+            padding-right: 10px;
+            height: 350px;
+        }
+
+        .message {
+            background: #f1f2f6;
+            padding: 12px 15px;
+            border-radius: 15px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            border-right: 4px solid #3498db;
+        }
+
+        .message-sys {
+            background: transparent;
+            text-align: center;
+            font-size: 12px;
+            color: #95a5a6;
+            border: none;
+            font-style: italic;
+        }
+
+        #chat-input-area {
+            display: flex;
+            gap: 10px;
+        }
+
+        #chat-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #dfe4ea;
+            border-radius: 8px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        #chat-input:focus {
+            border-color: #3498db;
+        }
+
+        #send-btn {
+            background: #2ed573;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        #send-btn:hover {
+            background: #26de81;
+        }
+
+        @media (max-width: 900px) {
+            .workspace-row {
+                flex-direction: column;
+            }
+
+            #map {
+                height: 400px;
+                width: 95%;
+            }
+
+            #court-workspace {
+                width: 95%;
+            }
+        }
     </style>
 </head>
+
 <body>
 
     <header>
@@ -110,17 +360,17 @@
         let isGuestUser = false;
         let currentUser = null;
         let map;
-        
-        let allFeatures = []; 
-        let activeMarkers = {}; 
-        
+
+        let allFeatures = [];
+        let activeMarkers = {};
+
         // סף זום חכם: במובייל המסך קטן יותר, אז נאפשר לראות מגרשים ממרחק גדול יותר 
-        const ZOOM_THRESHOLD = window.innerWidth < 900 ? 11.5 : 13; 
+        const ZOOM_THRESHOLD = window.innerWidth < 900 ? 11.5 : 13;
 
         $.ajax({
             url: '/api/auth/status',
             type: 'GET',
-            success: function(res) {
+            success: function (res) {
                 if (res.isGuest) {
                     if (!sessionStorage.getItem('pitchConnectGuest')) {
                         window.location.href = '/login.html';
@@ -133,12 +383,12 @@
                     $('#user-greeting').text('שלום, ' + currentUser);
                 }
             },
-            error: function() { window.location.href = '/login.html'; }
+            error: function () { window.location.href = '/login.html'; }
         });
 
         function logout() {
             sessionStorage.removeItem('pitchConnectGuest');
-            $.post('/api/auth/logout', function() { window.location.href = '/login.html'; });
+            $.post('/api/auth/logout', function () { window.location.href = '/login.html'; });
         }
 
         function getSportStyle(osmSport) {
@@ -152,27 +402,27 @@
 
         function updateMarkers() {
             if (!map) return;
-            
+
             const currentZoom = map.getZoom();
-            
+
             if (currentZoom < ZOOM_THRESHOLD) {
                 Object.keys(activeMarkers).forEach(removeMarker);
-                $('#zoom-warning').fadeIn(200); 
+                $('#zoom-warning').fadeIn(200);
                 return;
             }
-            
+
             $('#zoom-warning').fadeOut(200);
 
             const activeFilter = $('.filter-btn.active').data('filter');
             const bounds = map.getBounds();
-            
+
             allFeatures.forEach(court => {
                 if (activeFilter !== 'all' && court.style.code !== activeFilter) {
                     removeMarker(court.id);
                     return;
                 }
                 const isVisible = bounds.contains([court.lon, court.lat]);
-                if (isVisible) { addMarker(court); } 
+                if (isVisible) { addMarker(court); }
                 else { removeMarker(court.id); }
             });
         }
@@ -193,12 +443,12 @@
                 </div>
             `;
             const popup = new maplibregl.Popup({ offset: 25 }).setHTML(popupContent);
-            
+
             const marker = new maplibregl.Marker({ element: el })
                 .setLngLat([court.lon, court.lat])
                 .setPopup(popup)
                 .addTo(map);
-                
+
             activeMarkers[court.id] = marker;
         }
 
@@ -209,11 +459,11 @@
             }
         }
 
-        $(document).ready(function() {
+        $(document).ready(function () {
             const socket = io();
             let currentRoom = null;
-            const mapTilerKey = '26daLsnzWZ7lkKIB6mTj'; 
-            
+            const mapTilerKey = '26daLsnzWZ7lkKIB6mTj';
+
             // הכנסת ההתראות לתוך אובייקט המפה עצמו כדי שלא יוסתרו במובייל
             $('#map').css('position', 'relative').append(`
                 <div id="zoom-warning" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none; display: none;">
@@ -223,65 +473,65 @@
                     ⏳ טוען נתונים מהלוויין...
                 </div>
             `);
-            
+
             maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.2.3/mapbox-gl-rtl-text.min.js', null, true);
 
             map = new maplibregl.Map({
                 container: 'map',
                 style: `https://api.maptiler.com/maps/streets-v2/style.json?key=${mapTilerKey}`,
-                center: [34.7925, 31.9730], 
-                zoom: 11, 
-                pitch: 45 
+                center: [34.7925, 31.9730],
+                zoom: 11,
+                pitch: 45
             });
 
             map.addControl(new maplibregl.NavigationControl(), 'top-right');
             // הוספת כפתור ה-GPS ומיקום המשתמש
-const geolocate = new maplibregl.GeolocateControl({
-    positionOptions: { enableHighAccuracy: true }, // דיוק גבוה (כמו בוויז)
-    trackUserLocation: true, // עוקב אחרי המשתמש אם הוא זז
-    showUserHeading: true // מראה לאן המשתמש פונה
-});
-map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למטה ימינה במובייל
-            
+            const geolocate = new maplibregl.GeolocateControl({
+                positionOptions: { enableHighAccuracy: true }, // דיוק גבוה (כמו בוויז)
+                trackUserLocation: true, // עוקב אחרי המשתמש אם הוא זז
+                showUserHeading: true // מראה לאן המשתמש פונה
+            });
+            map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למטה ימינה במובייל
+
 
             map.on('moveend', updateMarkers);
             map.on('zoomend', updateMarkers);
 
-            map.on('load', function() {
+            map.on('load', function () {
                 geolocate.trigger();
                 fetch('/courts.json')
-                .then(response => {
-                    if (!response.ok) throw new Error('Network error');
-                    return response.json();
-                })
-                .then(data => {
-                    allFeatures = data.elements.map(el => {
-                        const lat = el.lat || (el.center && el.center.lat);
-                        const lon = el.lon || (el.center && el.center.lon);
-                        const sport = el.tags ? el.tags.sport : null;
-                        const style = getSportStyle(sport);
-                        const name = (el.tags && el.tags.name) ? el.tags.name : style.name;
+                    .then(response => {
+                        if (!response.ok) throw new Error('Network error');
+                        return response.json();
+                    })
+                    .then(data => {
+                        allFeatures = data.elements.map(el => {
+                            const lat = el.lat || (el.center && el.center.lat);
+                            const lon = el.lon || (el.center && el.center.lon);
+                            const sport = el.tags ? el.tags.sport : null;
+                            const style = getSportStyle(sport);
+                            const name = (el.tags && el.tags.name) ? el.tags.name : style.name;
 
-                        return { id: `${el.type}_${el.id}`, lat: lat, lon: lon, name: name, style: style };
-                    }).filter(court => court.lat && court.lon);
+                            return { id: `${el.type}_${el.id}`, lat: lat, lon: lon, name: name, style: style };
+                        }).filter(court => court.lat && court.lon);
 
-                    $('#loading-courts').fadeOut(300); 
-                    updateMarkers();
-                })
-                .catch(err => {
-                    console.error("Local Error:", err);
-                    $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים.');
-                });
+                        $('#loading-courts').fadeOut(300);
+                        updateMarkers();
+                    })
+                    .catch(err => {
+                        console.error("Local Error:", err);
+                        $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים.');
+                    });
             });
 
-            $('.filter-btn').click(function() {
+            $('.filter-btn').click(function () {
                 $('.filter-btn').removeClass('active');
                 $(this).addClass('active');
                 Object.keys(activeMarkers).forEach(removeMarker);
                 updateMarkers();
             });
 
-            $(document).on('click', '.join-chat-btn', function() {
+            $(document).on('click', '.join-chat-btn', function () {
                 if (isGuestUser) {
                     alert('אורחים יכולים לצפות במפה בלבד. עליך להירשם או להתחבר כדי להיכנס למגרש ולתאם משחקים!');
                     window.location.href = '/login.html';
@@ -295,27 +545,27 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
                     $('#court-workspace').fadeOut(300);
                     socket.emit('leave_court_room', courtId);
                     currentRoom = null;
-                    return; 
+                    return;
                 }
 
                 if (currentRoom && currentRoom !== courtId) {
-                    $('#chat-messages').empty(); 
+                    $('#chat-messages').empty();
                     socket.emit('leave_court_room', currentRoom);
                 }
 
                 currentRoom = courtId;
                 $('#court-workspace').fadeIn(300).css('display', 'flex');
-                
+
                 window.dispatchEvent(new CustomEvent('court_changed', { detail: { courtName: courtName, courtId: courtId } }));
                 socket.emit('join_court_room', courtId);
-                
+
                 // גלילה חלקה למטה במובייל כשלוחצים על מגרש
                 $('html, body').animate({ scrollTop: $("#court-workspace").offset().top - 20 }, 500);
             });
 
-            socket.on('chat_history', function(messages) {
+            socket.on('chat_history', function (messages) {
                 $('#chat-messages').empty();
-                if(messages.length === 0) {
+                if (messages.length === 0) {
                     $('#chat-messages').append('<div class="message-sys">אין הודעות קודמות במגרש זה. התחל את השיחה!</div>');
                 } else {
                     messages.forEach(msg => {
@@ -326,7 +576,7 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
                 }
             });
 
-            $('#send-btn').click(function() {
+            $('#send-btn').click(function () {
                 const text = $('#chat-input').val().trim();
                 if (text && currentRoom) {
                     const messageData = { courtId: currentRoom, sender: currentUser, text: text, time: new Date().toLocaleTimeString() };
@@ -337,7 +587,7 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
                 }
             });
 
-            socket.on('receive_message', function(data) {
+            socket.on('receive_message', function (data) {
                 if (data.sender !== currentUser) {
                     const isSystem = data.sender === 'מערכת';
                     const msgClass = isSystem ? 'message message-sys' : 'message';
@@ -349,15 +599,15 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
     </script>
 
     <script type="text/babel">
-    // קומפוננטת React ראשית שמנהלת את סביבת העבודה של המגרש
+        // קומפוננטת React ראשית שמנהלת את סביבת העבודה של המגרש
         const CourtWorkspace = () => {
             const [activeTab, setActiveTab] = React.useState('events');
             const [activeCourt, setActiveCourt] = React.useState({ id: null, name: 'בחר מגרש מהמפה' });
-            
+
             // סטייטים של נתונים
             const [events, setEvents] = React.useState([]);
             const [gallery, setGallery] = React.useState([]);
-            
+
             // סטייטים של טפסים
             const [showEventForm, setShowEventForm] = React.useState(false);
             const [newEvent, setNewEvent] = React.useState({ title: '', eventType: 'משחק אימון', description: '', eventDate: '' });
@@ -419,7 +669,7 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
             const uploadMedia = async (e) => {
                 e.preventDefault();
                 if (!selectedFile) return alert('נא לבחור קובץ');
-                
+
                 const formData = new FormData();
                 formData.append('mediaFile', selectedFile);
                 formData.append('courtId', activeCourt.id);
@@ -443,7 +693,7 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
             // --- לוגיקת ציור לוח טקטיקה ---
             const clearBoard = () => {
                 const canvas = canvasRef.current;
-                if(canvas) {
+                if (canvas) {
                     const ctx = canvas.getContext('2d');
                     ctx.clearRect(0, 0, canvas.width, canvas.height);
                 }
@@ -465,11 +715,11 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
             const stopDrawing = () => setIsDrawing(false);
 
             // --- רינדור הקומפוננטה ---
-            if (!activeCourt.id) return <div style={{flex: 2, padding: '20px', background: 'white', borderRadius: '15px', textAlign: 'center'}}><h3>בחר מגרש כדי לפתוח את סביבת העבודה</h3></div>;
+            if (!activeCourt.id) return <div style={{ flex: 2, padding: '20px', background: 'white', borderRadius: '15px', textAlign: 'center' }}><h3>בחר מגרש כדי לפתוח את סביבת העבודה</h3></div>;
 
             return (
                 <div style={{ flex: 2, backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                    
+
                     {/* סרגל ניווט פנימי */}
                     <div style={{ display: 'flex', background: '#f8f9fa', borderBottom: '2px solid #ecf0f1' }}>
                         <button onClick={() => setActiveTab('events')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'events' ? 'white' : 'transparent', color: activeTab === 'events' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'events' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s' }}>📅 אירועים ומשחקים</button>
@@ -478,7 +728,7 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
                     </div>
 
                     <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
-                        
+
                         {/* טאב אירועים */}
                         {activeTab === 'events' && (
                             <div>
@@ -491,17 +741,17 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
 
                                 {showEventForm && (
                                     <form onSubmit={submitEvent} style={{ background: '#f1f2f6', padding: '15px', borderRadius: '10px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                                        <input type="text" placeholder="כותרת האירוע (למשל: טורניר שבת בבוקר)" required value={newEvent.title} onChange={e => setNewEvent({...newEvent, title: e.target.value})} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }} />
+                                        <input type="text" placeholder="כותרת האירוע (למשל: טורניר שבת בבוקר)" required value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }} />
                                         <div style={{ display: 'flex', gap: '10px' }}>
-                                            <select value={newEvent.eventType} onChange={e => setNewEvent({...newEvent, eventType: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }}>
+                                            <select value={newEvent.eventType} onChange={e => setNewEvent({ ...newEvent, eventType: e.target.value })} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }}>
                                                 <option value="משחק אימון">משחק אימון</option>
                                                 <option value="טורניר">טורניר</option>
                                                 <option value="יום הולדת">יום הולדת</option>
                                                 <option value="אחר">אחר</option>
                                             </select>
-                                            <input type="datetime-local" required value={newEvent.eventDate} onChange={e => setNewEvent({...newEvent, eventDate: e.target.value})} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }} />
+                                            <input type="datetime-local" required value={newEvent.eventDate} onChange={e => setNewEvent({ ...newEvent, eventDate: e.target.value })} style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }} />
                                         </div>
-                                        <textarea placeholder="תיאור האירוע ופרטים נוספים..." rows="3" value={newEvent.description} onChange={e => setNewEvent({...newEvent, description: e.target.value})} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }}></textarea>
+                                        <textarea placeholder="תיאור האירוע ופרטים נוספים..." rows="3" value={newEvent.description} onChange={e => setNewEvent({ ...newEvent, description: e.target.value })} style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ddd' }}></textarea>
                                         <button type="submit" style={{ background: '#3498db', color: 'white', border: 'none', padding: '10px', borderRadius: '5px', fontWeight: 'bold', cursor: 'pointer' }}>צור אירוע ופרסם</button>
                                     </form>
                                 )}
@@ -555,8 +805,8 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
                         {activeTab === 'tactics' && (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                 <p style={{ color: '#7f8c8d', marginBottom: '10px' }}>צייר כאן כדי להסביר מהלכים טקטיים לפני המשחק</p>
-                                <canvas 
-                                    ref={canvasRef} width="500" height="300" 
+                                <canvas
+                                    ref={canvasRef} width="500" height="300"
                                     style={{ border: '2px solid #2c3e50', borderRadius: '10px', backgroundColor: '#e0f7fa', cursor: 'crosshair', maxWidth: '100%' }}
                                     onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
                                 />
@@ -574,4 +824,5 @@ map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למט�
         root.render(<CourtWorkspace />);
     </script>
 </body>
+
 </html>
