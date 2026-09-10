@@ -168,45 +168,101 @@
             background: rgba(41, 128, 185, 1);
         }
 
+        /* ==========================================
+           עיצוב הפופ-אפ המודרני החדש (Card)
+           ========================================== */
         .maplibregl-popup-content {
-            text-align: right;
-            font-family: inherit;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-            border: none;
+            border-radius: 16px !important;
+            padding: 0 !important;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2) !important;
+            border: none !important;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            text-align: center;
         }
 
         .maplibregl-popup-close-button {
             left: 5px;
             right: auto;
-            padding: 8px;
-            font-size: 16px;
-            color: #7f8c8d;
+            font-size: 24px;
+            color: #ffffff;
+            padding: 5px 12px;
+            transition: color 0.2s;
+            z-index: 10;
         }
 
         .maplibregl-popup-close-button:hover {
-            background-color: transparent;
-            color: #e74c3c;
+            color: #ff7675;
+            background: transparent;
+        }
+
+        .maplibregl-popup-tip {
+            border-top-color: #ffffff !important;
+        }
+
+        .custom-popup {
+            min-width: 220px;
+        }
+
+        .popup-header {
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            padding: 25px 15px 15px;
+            position: relative;
+        }
+
+        .popup-emoji {
+            font-size: 35px;
+            margin-bottom: 5px;
+            filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.2));
+        }
+
+        .popup-title {
+            font-size: 18px;
+            font-weight: 800;
+            margin: 0;
+            letter-spacing: 0.5px;
+        }
+
+        .popup-body {
+            padding: 20px 15px;
+            background: #ffffff;
+        }
+
+        .popup-sport-type {
+            color: #7f8c8d;
+            font-size: 14px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
         }
 
         .join-chat-btn {
             background: linear-gradient(135deg, #00b4db 0%, #0083b0 100%);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            width: 100%;
-            margin-top: 10px;
-            padding: 10px;
-            cursor: pointer;
             color: white;
             border: none;
-            border-radius: 5px;
+            padding: 12px 20px;
+            border-radius: 25px;
             font-weight: bold;
+            font-size: 15px;
+            cursor: pointer;
+            width: 100%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 180, 219, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
 
         .join-chat-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 10px rgba(0, 180, 219, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 180, 219, 0.5);
         }
+
+        /* ========================================== */
 
         #court-workspace {
             display: none;
@@ -435,14 +491,27 @@
             el.innerHTML = court.style.icon;
             el.style.backgroundColor = court.style.color;
 
+            // עדכון ה-HTML של הפופ-אפ לעיצוב החדש והמודרני
             const popupContent = `
-                <div style="margin-top: 15px;">
-                    <h3 style="margin: 0; color: #2c3e50;">${court.name}</h3>
-                    <p style="margin: 5px 0;"><b>סוג ספורט:</b> ${court.style.name}</p>
-                    <button class="join-chat-btn" data-id="${court.id}" data-name="${court.name}">היכנס למגרש ולצ'אט</button>
+                <div class="custom-popup">
+                    <div class="popup-header">
+                        <div class="popup-emoji">${court.style.icon}</div>
+                        <h3 class="popup-title">${court.name || 'מגרש ספורט'}</h3>
+                    </div>
+                    <div class="popup-body">
+                        <div class="popup-sport-type">
+                            <span>סוג ספורט:</span>
+                            <strong>${court.style.name}</strong>
+                        </div>
+                        <button class="join-chat-btn" data-id="${court.id}" data-name="${court.name || 'מגרש ספורט'}">
+                            <span>היכנס למגרש ולצ'אט</span>
+                            <span>💬</span>
+                        </button>
+                    </div>
                 </div>
             `;
-            const popup = new maplibregl.Popup({ offset: 25 }).setHTML(popupContent);
+
+            const popup = new maplibregl.Popup({ offset: 25, closeButton: true }).setHTML(popupContent);
 
             const marker = new maplibregl.Marker({ element: el })
                 .setLngLat([court.lon, court.lat])
