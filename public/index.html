@@ -240,10 +240,9 @@
             map.on('zoomend', updateMarkers);
 
             map.on('load', function() {
-                // קריאה מאובטחת לשרת שלנו, שעוקפת את חסימות הדפדפן במובייל
-                fetch('/api/courts/live-data')
+                fetch('/courts.json')
                 .then(response => {
-                    if (!response.ok) throw new Error('Network response was not ok');
+                    if (!response.ok) throw new Error('Network error');
                     return response.json();
                 })
                 .then(data => {
@@ -253,16 +252,16 @@
                         const sport = el.tags ? el.tags.sport : null;
                         const style = getSportStyle(sport);
                         const name = (el.tags && el.tags.name) ? el.tags.name : style.name;
-                        
+
                         return { id: `${el.type}_${el.id}`, lat: lat, lon: lon, name: name, style: style };
                     }).filter(court => court.lat && court.lon);
-                    
+
                     $('#loading-courts').fadeOut(300); 
                     updateMarkers();
                 })
                 .catch(err => {
-                    console.error("Local API Error:", err);
-                    $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים. רענן עמוד.');
+                    console.error("Local Error:", err);
+                    $('#loading-courts').css('background', '#e74c3c').text('❌ שגיאה בטעינת מגרשים.');
                 });
             });
 
