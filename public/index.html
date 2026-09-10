@@ -235,11 +235,20 @@
             });
 
             map.addControl(new maplibregl.NavigationControl(), 'top-right');
+            // הוספת כפתור ה-GPS ומיקום המשתמש
+const geolocate = new maplibregl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true }, // דיוק גבוה (כמו בוויז)
+    trackUserLocation: true, // עוקב אחרי המשתמש אם הוא זז
+    showUserHeading: true // מראה לאן המשתמש פונה
+});
+map.addControl(geolocate, 'bottom-right'); // נמקם את הכפתור למטה ימינה במובייל
+            
 
             map.on('moveend', updateMarkers);
             map.on('zoomend', updateMarkers);
 
             map.on('load', function() {
+                geolocate.trigger();
                 fetch('/courts.json')
                 .then(response => {
                     if (!response.ok) throw new Error('Network error');
