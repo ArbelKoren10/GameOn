@@ -11,7 +11,9 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 passport.use(new GoogleStrategy({
     clientID: process.env.GOOGLE_CLIENT_ID,
     clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-    callbackURL: "/api/auth/google/callback",
+    // הוספנו את הכתובת המלאה והמעודכנת שלך ב-Render 
+    // כדי שגוגל ידע בדיוק לאן להחזיר את המשתמש בלי בעיות של Access Denied
+    callbackURL: process.env.GOOGLE_CALLBACK_URL || "https://gameon-vx47.onrender.com/api/auth/google/callback",
     proxy: true
 },
     async function (accessToken, refreshToken, profile, cb) {
