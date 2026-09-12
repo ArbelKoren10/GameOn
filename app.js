@@ -6,7 +6,6 @@ const mongoose = require('mongoose');
 const session = require('express-session');
 const passport = require('passport');
 const cron = require('node-cron');
-// הוספת ספריית ה-AI של גוגל
 const { GoogleGenAI } = require('@google/genai');
 
 const Message = require('./models/message');
@@ -63,8 +62,27 @@ cron.schedule('0 3 * * *', async () => {
 });
 
 io.on('connection', (socket) => {
+    console.log(`User connected: ${socket.id}`);
+
+    const broadcastRoomUserCount = (room) => {
+        if (!room) return;
+        const roomObj = io.sockets.adapter.rooms.get(room);
+        const userCount = roomObj ? roomObj.size : 0;
+        io.emit('court_status_update', { courtId: room, count: userCount });
+    };
+
     socket.on('join_court_room', async (courtId) => {
+        if (socket.currentRoom && socket.currentRoom !== courtId) {
+            const previousRoom = socket.currentRoom;
+            socket.leave(previousRoom);
+            setTimeout(() => broadcastRoomUserCount(previousRoom), 100);
+        }
+
         socket.join(courtId);
+        socket.currentRoom = courtId;
+
+        setTimeout(() => broadcastRoomUserCount(courtId), 100);
+
         try {
             const history = await Message.find({ courtId }).sort({ createdAt: 1 }).limit(50);
             socket.emit('chat_history', history);
@@ -79,10 +97,29 @@ io.on('connection', (socket) => {
 
     socket.on('leave_court_room', (courtId) => {
         socket.leave(courtId);
+        if (socket.currentRoom === courtId) {
+            socket.currentRoom = null;
+        }
+        setTimeout(() => broadcastRoomUserCount(courtId), 100);
+    });
+
+    // ==============================================
+    // סנכרון לו"ז בזמן אמת בין כל המשתמשים
+    // ==============================================
+    socket.on('reservation_update', (data) => {
+        // משדר לכל שאר המשתמשים שנמצאים כרגע באותו חדר (מגרש) לרענן את הלו"ז שלהם
+        socket.to(data.courtId).emit('refresh_reservations', data);
+    });
+
+    socket.on('disconnect', () => {
+        console.log(`User disconnected: ${socket.id}`);
+        if (socket.currentRoom) {
+            const roomToUpdate = socket.currentRoom;
+            setTimeout(() => broadcastRoomUserCount(roomToUpdate), 100);
+        }
     });
 
     socket.on('send_message', async (data) => {
-        // שמירת ההודעה של המשתמש הרגיל
         try {
             const newMsg = new Message({
                 courtId: data.courtId,
@@ -93,24 +130,16 @@ io.on('connection', (socket) => {
             await newMsg.save();
         } catch (error) { console.error('Error saving message:', error); }
 
-        // שליחת ההודעה לשאר המשתמשים בחדר
         socket.to(data.courtId).emit('receive_message', data);
 
-        // ==============================================
-        // אינטגרציית ה-AI: זיהוי תיוג הבוט
-        // ==============================================
         if (data.text.trim().startsWith('@GameOn')) {
-            // חילוץ השאלה ללא התיוג
-            // חילוץ השאלה ללא התיוג
             const userQuestion = data.text.replace('@GameOn', '').trim();
 
             if (userQuestion.length > 0) {
                 try {
-                    // משיכת התאריך והשעה המדויקים של השרת (זמן ישראל) בכל שאלה מחדש
                     const now = new Date();
                     const currentDateTime = now.toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' });
 
-                    // הזרקת הזמן האמיתי לפרומפט כדי שהמודל "יתאפס"
                     const prompt = `אתה GameOn AI, עוזר חכם באפליקציה למציאת מגרשי ספורט בישראל. 
 המידע המעודכן ביותר עבורך: התאריך והשעה הנוכחיים עכשיו הם ${currentDateTime}. 
 אל תמציא מידע, ואם אתה לא יודע תוצאות של משחקים שהתרחשו לאחרונה, פשוט תגיד שאין לך גישה לתוצאות חיות.
@@ -122,15 +151,13 @@ io.on('connection', (socket) => {
                         contents: prompt,
                     });
 
-                    // יצירת אובייקט הודעה מטעם הבוט
                     const aiMessageData = {
                         courtId: data.courtId,
-                        sender: 'GameOn AI 🤖', // זיהוי ויזואלי ברור
+                        sender: 'GameOn AI 🤖',
                         text: response.text,
                         time: new Date().toLocaleTimeString('he-IL')
                     };
 
-                    // שמירת הודעת הבוט במסד הנתונים
                     const aiMsgRecord = new Message({
                         courtId: aiMessageData.courtId,
                         sender: aiMessageData.sender,
@@ -139,12 +166,10 @@ io.on('connection', (socket) => {
                     });
                     await aiMsgRecord.save();
 
-                    // שליחת התשובה של הבוט בחזרה *לכל* מי שבמגרש (כולל זה ששאל)
                     io.in(data.courtId).emit('receive_message', aiMessageData);
 
                 } catch (aiError) {
                     console.error('Error generating AI response:', aiError);
-                    // במקרה של שגיאה עם המפתח או השרת של גוגל, נשלח הודעת שגיאה מסודרת
                     const errorMsg = {
                         courtId: data.courtId,
                         sender: 'GameOn AI 🤖',
@@ -155,7 +180,6 @@ io.on('connection', (socket) => {
                 }
             }
         }
-        // ==============================================
     });
 });
 

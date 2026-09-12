@@ -20,16 +20,12 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             background-color: #f8f9fa;
-            /* רקע עדין ובהיר במקום גראדינט כבד */
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
 
-        /* ==========================================
-           עיצוב ההדר החדש (Navbar)
-           ========================================== */
         header {
             width: 100%;
             background: white;
@@ -49,7 +45,6 @@
             height: 60px;
         }
 
-        /* לוגו צד ימין (או מרכז במובייל) */
         .brand {
             display: flex;
             align-items: center;
@@ -70,10 +65,8 @@
             color: #7f8c8d;
             font-weight: normal;
             display: none;
-            /* יוסתר במובייל */
         }
 
-        /* תפריט משתמש (Avatar) בשמאל */
         .user-menu-container {
             position: relative;
         }
@@ -99,7 +92,6 @@
             transform: scale(0.95);
         }
 
-        /* התפריט הנשלף */
         .dropdown-menu {
             position: absolute;
             top: 50px;
@@ -155,9 +147,6 @@
             background: #fdf5f5;
         }
 
-        /* ==========================================
-           שורת הפילטרים החדשה (Chips)
-           ========================================== */
         .filters-container {
             width: 100%;
             background: white;
@@ -173,15 +162,12 @@
             gap: 10px;
             padding: 0 20px;
             overflow-x: auto;
-            /* מאפשר גלילה במובייל */
             -webkit-overflow-scrolling: touch;
             scrollbar-width: none;
-            /* הסתרת הפס בפיירפוקס */
         }
 
         .filters::-webkit-scrollbar {
             display: none;
-            /* הסתרת הפס בכרום וספארי */
         }
 
         .filter-btn {
@@ -195,7 +181,6 @@
             cursor: pointer;
             transition: all 0.2s ease;
             white-space: nowrap;
-            /* מונע שבירת שורות בכפתור */
         }
 
         .filter-btn:active {
@@ -208,7 +193,6 @@
             box-shadow: 0 4px 10px rgba(30, 60, 114, 0.2);
         }
 
-        /* שאר העיצוב המקורי */
         #map {
             height: 550px;
             width: calc(100% - 40px);
@@ -261,7 +245,6 @@
             background: rgba(41, 128, 185, 1);
         }
 
-        /* עיצוב הפופ-אפ של המגרש */
         .maplibregl-popup-content {
             border-radius: 16px !important;
             padding: 0 !important;
@@ -323,11 +306,22 @@
         .popup-sport-type {
             color: #7f8c8d;
             font-size: 14px;
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 5px;
+        }
+
+        .court-status-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-bottom: 20px;
+            background-color: #28a745;
+            color: white;
         }
 
         .join-chat-btn {
@@ -484,7 +478,6 @@
 
 <body>
 
-    <!-- ההדר החדש והמעוצב -->
     <header>
         <div class="header-content">
             <div class="brand">
@@ -494,7 +487,6 @@
 
             <div class="user-menu-container">
                 <div class="user-avatar" id="user-avatar-btn" onclick="toggleUserMenu()">
-                    <!-- יאוכלס דינמית על ידי האות הראשונה של המשתמש -->
                     ?
                 </div>
 
@@ -517,7 +509,6 @@
         </div>
     </header>
 
-    <!-- שורת פילטרים חדשה וקומפקטית -->
     <div class="filters-container">
         <div class="filters">
             <button class="filter-btn active" data-filter="all">הכל</button>
@@ -551,14 +542,14 @@
         let allFeatures = [];
         let activeMarkers = {};
 
+        const socket = io();
+
         const ZOOM_THRESHOLD = window.innerWidth < 900 ? 11.5 : 13;
 
-        // ניהול התפריט הנשלף של המשתמש
         function toggleUserMenu() {
             document.getElementById('user-dropdown').classList.toggle('active');
         }
 
-        // סגירת התפריט בלחיצה מחוץ אליו
         document.addEventListener('click', function (event) {
             const container = document.querySelector('.user-menu-container');
             if (!container.contains(event.target)) {
@@ -581,7 +572,6 @@
                 } else {
                     currentUser = res.user.username;
                     $('#dropdown-username').text(currentUser);
-                    // שים את האות הראשונה של השם בעיגול הפרופיל
                     const firstLetter = currentUser.charAt(0).toUpperCase();
                     $('#user-avatar-btn').text(firstLetter);
                 }
@@ -649,6 +639,7 @@
                             <span>סוג ספורט:</span>
                             <strong>${court.style.name}</strong>
                         </div>
+                        <div id="status-${court.id}" class="court-status-badge">🟢 פנוי (0 שחקנים)</div>
                         <button class="join-chat-btn" data-id="${court.id}" data-name="${court.name || 'מגרש ספורט'}">
                             <span>היכנס למגרש ולצ'אט</span>
                             <span>💬</span>
@@ -674,10 +665,36 @@
             }
         }
 
+        socket.on('court_status_update', (data) => {
+            const badge = document.getElementById(`status-${data.courtId}`);
+            if (badge) {
+                if (data.count === 0) {
+                    badge.innerHTML = '🟢 פנוי (0 שחקנים)';
+                    badge.style.backgroundColor = '#28a745';
+                    badge.style.color = 'white';
+                } else if (data.count >= 1 && data.count <= 9) {
+                    badge.innerHTML = `🟡 פעיל מומלץ להצטרף! (${data.count} שחקנים)`;
+                    badge.style.backgroundColor = '#ffc107';
+                    badge.style.color = 'black';
+                } else {
+                    badge.innerHTML = `🔴 עמוס (${data.count} שחקנים)`;
+                    badge.style.backgroundColor = '#dc3545';
+                    badge.style.color = 'white';
+                }
+            }
+        });
+
         $(document).ready(function () {
-            const socket = io();
             let currentRoom = null;
             const mapTilerKey = '26daLsnzWZ7lkKIB6mTj';
+
+            function leaveCurrentCourt() {
+                if (currentRoom) {
+                    $('#court-workspace').fadeOut(300);
+                    socket.emit('leave_court_room', currentRoom);
+                    currentRoom = null;
+                }
+            }
 
             $('#map').css('position', 'relative').append(`
                 <div id="zoom-warning" style="position: absolute; top: 20px; left: 50%; transform: translateX(-50%); background: rgba(44, 62, 80, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-weight: bold; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; pointer-events: none; display: none;">
@@ -707,9 +724,12 @@
             });
             map.addControl(geolocate, 'bottom-right');
 
-
             map.on('moveend', updateMarkers);
             map.on('zoomend', updateMarkers);
+
+            map.on('popupclose', function () {
+                leaveCurrentCourt();
+            });
 
             map.on('load', function () {
                 geolocate.trigger();
@@ -742,6 +762,7 @@
                 $('.filter-btn').removeClass('active');
                 $(this).addClass('active');
                 Object.keys(activeMarkers).forEach(removeMarker);
+                leaveCurrentCourt();
                 updateMarkers();
             });
 
@@ -756,9 +777,7 @@
                 const courtName = $(this).data('name');
 
                 if (currentRoom === courtId) {
-                    $('#court-workspace').fadeOut(300);
-                    socket.emit('leave_court_room', courtId);
-                    currentRoom = null;
+                    leaveCurrentCourt();
                     return;
                 }
 
@@ -792,7 +811,7 @@
             $('#send-btn').click(function () {
                 const text = $('#chat-input').val().trim();
                 if (text && currentRoom) {
-                    const messageData = { courtId: currentRoom, sender: currentUser, text: text, time: new Date().toLocaleTimeString() };
+                    const messageData = { courtId: currentRoom, sender: currentUser, text: text, time: new Date().toLocaleTimeString('he-IL') };
                     $('#chat-messages').append(`<div class="message" style="background:#d4edda; border-right:4px solid #28a745;"><b>${messageData.sender}:</b> ${messageData.text} <br><small>${messageData.time}</small></div>`);
                     $('#chat-input').val('');
                     $('#chat-messages').scrollTop($('#chat-messages')[0].scrollHeight);
@@ -812,37 +831,60 @@
     </script>
 
     <script type="text/babel">
-        // קומפוננטת React ראשית שמנהלת את סביבת העבודה של המגרש
         const CourtWorkspace = () => {
-            const [activeTab, setActiveTab] = React.useState('events');
+            const [activeTab, setActiveTab] = React.useState('schedule');
             const [activeCourt, setActiveCourt] = React.useState({ id: null, name: 'בחר מגרש מהמפה' });
 
-            // סטייטים של נתונים
             const [events, setEvents] = React.useState([]);
             const [gallery, setGallery] = React.useState([]);
 
-            // סטייטים של טפסים
+            const [selectedDate, setSelectedDate] = React.useState(new Date().toISOString().split('T')[0]);
+            const [reservations, setReservations] = React.useState([]);
+            const [bookingStatus, setBookingStatus] = React.useState('');
+
             const [showEventForm, setShowEventForm] = React.useState(false);
             const [newEvent, setNewEvent] = React.useState({ title: '', eventType: 'משחק אימון', description: '', eventDate: '' });
             const [selectedFile, setSelectedFile] = React.useState(null);
 
-            // לוח טקטיקה
             const canvasRef = React.useRef(null);
             const [isDrawing, setIsDrawing] = React.useState(false);
 
-            // האזנה לשינוי מגרש
+            // ==========================================
+            // האזנה לעדכוני שריונים מ-Socket.io בזמן אמת
+            // ==========================================
+            React.useEffect(() => {
+                const handleReservationUpdate = (data) => {
+                    // מושכים נתונים חדשים רק אם העדכון שייך למגרש ולתאריך שאנחנו צופים בהם עכשיו
+                    if (activeCourt.id === data.courtId && selectedDate === data.date) {
+                        fetchReservations(activeCourt.id, selectedDate);
+                    }
+                };
+
+                socket.on('refresh_reservations', handleReservationUpdate);
+
+                return () => {
+                    socket.off('refresh_reservations', handleReservationUpdate);
+                };
+            }, [activeCourt.id, selectedDate]);
+
             React.useEffect(() => {
                 const handleCourtChange = (e) => {
                     setActiveCourt({ id: e.detail.courtId, name: e.detail.courtName });
                     fetchEvents(e.detail.courtId);
                     fetchGallery(e.detail.courtId);
+                    fetchReservations(e.detail.courtId, selectedDate);
                     clearBoard();
                 };
                 window.addEventListener('court_changed', handleCourtChange);
                 return () => window.removeEventListener('court_changed', handleCourtChange);
-            }, []);
+            }, [selectedDate]);
 
-            // --- משיכת נתונים מהשרת ---
+            React.useEffect(() => {
+                if (activeCourt.id) {
+                    fetchReservations(activeCourt.id, selectedDate);
+                }
+            }, [selectedDate]);
+
             const fetchEvents = async (courtId) => {
                 try {
                     const res = await fetch(`/api/activity/events/${courtId}`);
@@ -859,7 +901,14 @@
                 } catch (err) { console.error('Error fetching gallery:', err); }
             };
 
-            // --- שליחת נתונים לשרת ---
+            const fetchReservations = async (courtId, date) => {
+                try {
+                    const res = await fetch(`/api/activity/reservations/${courtId}/${date}`);
+                    const data = await res.json();
+                    setReservations(data);
+                } catch (err) { console.error('Error fetching reservations:', err); }
+            };
+
             const submitEvent = async (e) => {
                 e.preventDefault();
                 try {
@@ -895,7 +944,7 @@
                     if (res.ok) {
                         fetchGallery(activeCourt.id);
                         setSelectedFile(null);
-                        e.target.reset(); // ניקוי שדה הקובץ
+                        e.target.reset();
                     } else {
                         const error = await res.json();
                         alert(error.message || 'שגיאה בהעלאת קובץ');
@@ -903,7 +952,67 @@
                 } catch (err) { console.error('Error uploading media:', err); }
             };
 
-            // --- לוגיקת ציור לוח טקטיקה ---
+            const handleBookSlot = async (startTime, endTime) => {
+                try {
+                    setBookingStatus('משריין...');
+                    const res = await fetch('/api/activity/reservations', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            courtId: activeCourt.id,
+                            date: selectedDate,
+                            startTime: startTime,
+                            endTime: endTime
+                        })
+                    });
+
+                    if (res.ok) {
+                        setBookingStatus('המגרש שוריין בהצלחה!');
+                        fetchReservations(activeCourt.id, selectedDate);
+
+                        // שידור העדכון בזמן אמת לכל שאר המשתמשים באותו מגרש
+                        socket.emit('reservation_update', { courtId: activeCourt.id, date: selectedDate });
+
+                        setTimeout(() => setBookingStatus(''), 3000);
+                    } else {
+                        const error = await res.json();
+                        setBookingStatus(error.message || 'שגיאה בשריון');
+                        setTimeout(() => setBookingStatus(''), 3000);
+                    }
+                } catch (err) {
+                    console.error('Error booking slot:', err);
+                    setBookingStatus('שגיאת רשת');
+                }
+            };
+
+            const handleCancelBooking = async (reservationId) => {
+                if (!window.confirm("האם אתה בטוח שברצונך לבטל את השריון?")) return;
+
+                try {
+                    setBookingStatus('מבטל שריון...');
+                    const res = await fetch(`/api/activity/reservations/${reservationId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (res.ok) {
+                        setBookingStatus('השריון בוטל בהצלחה!');
+                        fetchReservations(activeCourt.id, selectedDate);
+
+                        // שידור העדכון בזמן אמת לכל שאר המשתמשים באותו מגרש
+                        socket.emit('reservation_update', { courtId: activeCourt.id, date: selectedDate });
+
+                        setTimeout(() => setBookingStatus(''), 3000);
+                    } else {
+                        const error = await res.json();
+                        setBookingStatus(error.message || 'שגיאה בביטול השריון');
+                        setTimeout(() => setBookingStatus(''), 3000);
+                    }
+                } catch (err) {
+                    console.error('Error canceling slot:', err);
+                    setBookingStatus('שגיאת רשת בביטול');
+                }
+            };
+
             const clearBoard = () => {
                 const canvas = canvasRef.current;
                 if (canvas) {
@@ -927,22 +1036,122 @@
             };
             const stopDrawing = () => setIsDrawing(false);
 
-            // --- רינדור הקומפוננטה ---
-            if (!activeCourt.id) return <div style={{ flex: 2, padding: '20px', background: 'white', borderRadius: '15px', textAlign: 'center' }}><h3>בחר מגרש כדי לפתוח את סביבת העבודה</h3></div>;
+            const generateTimeSlots = () => {
+                const slots = [];
+                for (let i = 8; i <= 22; i++) {
+                    const startTime = `${i.toString().padStart(2, '0')}:00`;
+                    const endTime = `${(i + 1).toString().padStart(2, '0')}:00`;
+
+                    const existingReservation = reservations.find(r => r.startTime === startTime);
+
+                    slots.push({
+                        startTime,
+                        endTime,
+                        isBooked: !!existingReservation,
+                        bookedBy: existingReservation ? existingReservation.username : null,
+                        reservationId: existingReservation ? existingReservation._id : null
+                    });
+                }
+                return slots;
+            };
+
+            if (!activeCourt.id) return <div style={{ flex: 2, padding: '20px', background: 'white', borderRadius: '15px', textAlign: 'center' }}><h3>בחר מגרש כדי לפתוח סביבת עבודה</h3></div>;
 
             return (
                 <div style={{ flex: 2, backgroundColor: 'white', borderRadius: '20px', boxShadow: '0 10px 30px rgba(0,0,0,0.08)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-
-                    {/* סרגל ניווט פנימי */}
-                    <div style={{ display: 'flex', background: '#f8f9fa', borderBottom: '2px solid #ecf0f1' }}>
-                        <button onClick={() => setActiveTab('events')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'events' ? 'white' : 'transparent', color: activeTab === 'events' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'events' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s' }}>📅 אירועים ומשחקים</button>
-                        <button onClick={() => setActiveTab('gallery')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'gallery' ? 'white' : 'transparent', color: activeTab === 'gallery' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'gallery' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s' }}>📸 גלריית מגרש</button>
-                        <button onClick={() => setActiveTab('tactics')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'tactics' ? 'white' : 'transparent', color: activeTab === 'tactics' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'tactics' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s' }}>🖍️ לוח טקטיקה</button>
+                    <div style={{ display: 'flex', background: '#f8f9fa', borderBottom: '2px solid #ecf0f1', overflowX: 'auto', whiteSpace: 'nowrap' }}>
+                        <button onClick={() => setActiveTab('schedule')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'schedule' ? 'white' : 'transparent', color: activeTab === 'schedule' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'schedule' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s', minWidth: '120px' }}>🗓️ שריון לו"ז</button>
+                        <button onClick={() => setActiveTab('events')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'events' ? 'white' : 'transparent', color: activeTab === 'events' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'events' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s', minWidth: '120px' }}>📅 אירועים</button>
+                        <button onClick={() => setActiveTab('gallery')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'gallery' ? 'white' : 'transparent', color: activeTab === 'gallery' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'gallery' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s', minWidth: '120px' }}>📸 גלריה</button>
+                        <button onClick={() => setActiveTab('tactics')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'tactics' ? 'white' : 'transparent', color: activeTab === 'tactics' ? '#2980b9' : '#7f8c8d', fontWeight: 'bold', borderBottom: activeTab === 'tactics' ? '3px solid #2980b9' : 'none', cursor: 'pointer', transition: '0.2s', minWidth: '120px' }}>🖍️ טקטיקה</button>
                     </div>
 
                     <div style={{ padding: '20px', flex: 1, overflowY: 'auto' }}>
 
-                        {/* טאב אירועים */}
+                        {activeTab === 'schedule' && (
+                            <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '10px' }}>
+                                    <h3 style={{ margin: 0, color: '#2c3e50' }}>זמינות המגרש</h3>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <label style={{ fontWeight: 'bold', color: '#7f8c8d' }}>בחר תאריך:</label>
+                                        <input
+                                            type="date"
+                                            value={selectedDate}
+                                            onChange={(e) => setSelectedDate(e.target.value)}
+                                            min={new Date().toISOString().split('T')[0]}
+                                            style={{ padding: '8px', border: '1px solid #ddd', borderRadius: '8px' }}
+                                        />
+                                    </div>
+                                </div>
+
+                                {bookingStatus && (
+                                    <div style={{ padding: '10px', marginBottom: '15px', backgroundColor: bookingStatus.includes('בהצלחה') ? '#d4edda' : '#f8d7da', color: bookingStatus.includes('בהצלחה') ? '#155724' : '#721c24', borderRadius: '8px', textAlign: 'center', fontWeight: 'bold' }}>
+                                        {bookingStatus}
+                                    </div>
+                                )}
+
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px' }}>
+                                    {generateTimeSlots().map((slot, index) => (
+                                        <div key={index} style={{
+                                            border: '1px solid #ddd',
+                                            borderRadius: '8px',
+                                            padding: '10px',
+                                            backgroundColor: slot.isBooked ? '#f1f2f6' : '#ffffff',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}>
+                                            <b style={{ fontSize: '18px', color: slot.isBooked ? '#7f8c8d' : '#2c3e50' }}>{slot.startTime} - {slot.endTime}</b>
+
+                                            {slot.isBooked ? (
+                                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', width: '100%' }}>
+                                                    <div style={{ color: '#e74c3c', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+                                                        תפוס ע"י {slot.bookedBy} 🔒
+                                                    </div>
+                                                    {currentUser === slot.bookedBy && (
+                                                        <button
+                                                            onClick={() => handleCancelBooking(slot.reservationId)}
+                                                            style={{
+                                                                backgroundColor: '#e74c3c',
+                                                                color: 'white',
+                                                                border: 'none',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '5px',
+                                                                cursor: 'pointer',
+                                                                fontSize: '12px',
+                                                                fontWeight: 'bold',
+                                                                width: '100%',
+                                                                marginTop: '5px'
+                                                            }}
+                                                        >
+                                                            בטל שריון
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleBookSlot(slot.startTime, slot.endTime)}
+                                                    style={{
+                                                        backgroundColor: '#2ecc71',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        padding: '6px 12px',
+                                                        borderRadius: '15px',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 'bold',
+                                                        width: '100%'
+                                                    }}
+                                                >
+                                                    שריין שעה זו
+                                                </button>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         {activeTab === 'events' && (
                             <div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -988,7 +1197,6 @@
                             </div>
                         )}
 
-                        {/* טאב גלריה */}
                         {activeTab === 'gallery' && (
                             <div>
                                 <form onSubmit={uploadMedia} style={{ display: 'flex', gap: '10px', marginBottom: '20px', background: '#f1f2f6', padding: '15px', borderRadius: '10px' }}>
@@ -1014,7 +1222,6 @@
                             </div>
                         )}
 
-                        {/* טאב טקטיקה */}
                         {activeTab === 'tactics' && (
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                 <p style={{ color: '#7f8c8d', marginBottom: '10px' }}>צייר כאן כדי להסביר מהלכים טקטיים לפני המשחק</p>
